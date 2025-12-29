@@ -1,4 +1,3 @@
-# 复制这段代码保存为 index.html，替换原来的文件
 <!DOCTYPE html>
 <html>
 <head>
@@ -224,32 +223,66 @@
                 userInput.focus();
             }
             
-            // 修改这里！模拟API回复
+            // 调用工作流API
             async function callWorkflowAPI(userMessage, memory) {
-                return new Promise(resolve => {
-                    setTimeout(() => {
-                        let reply = '';
-                        let isReset = userMessage.includes('/重置') || userMessage.includes('重置');
-                        
-                        if (isReset) {
-                            reply = '对话已重置！时空的沙漏重新开始流淌，您可以开始新的历史对话。';
-                        } else if (userMessage.includes('李白') || userMessage.includes('杜甫')) {
-                            reply = `您提到了${userMessage.includes('李白') ? '李白' : '杜甫'}！这位诗人确实在历史上留下了不朽的篇章。想了解什么具体内容？`;
-                        } else if (userMessage.includes('唐太宗') || userMessage.includes('魏征')) {
-                            reply = '太宗与魏征，明君与谏臣的典范。魏征曾言："兼听则明，偏信则暗。"想探讨他们的哪段故事？';
-                        } else if (userMessage.includes('你好')) {
-                            reply = '您好！我是历史对话助手，可以帮您模拟与历史人物的对话。';
-                        } else {
-                            reply = `您说："${userMessage}"\n\n这是一个模拟回复，网站已正常运行！`;
-                        }
-                        
-                        resolve({
-                            reply: reply,
-                            memory: memory,
-                            isReset: isReset
-                        });
-                    }, 800);
+                // 这里替换为您的实际API地址
+                const API_URL = 'YOUR_WORKFLOW_API_URL';
+                
+                // 构建请求体
+                const requestBody = {
+                    user_input: userMessage,
+                    previous_memory: memory || ''
+                };
+                
+                // 发送请求
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // 解析回复，提取记忆
+                return parseWorkflowResponse(data);
+            }
+            
+            // 解析工作流响应
+            function parseWorkflowResponse(responseData) {
+                let reply = responseData.final_response || '';
+                let memory = '';
+                let isReset = false;
+                
+                // 检查是否为重置消息
+                if (reply.includes('时空的沙漏') || reply.includes('新的历史篇章')) {
+                    isReset = true;
+                }
+                
+                // 提取记忆标记（如果使用HTML注释方式）
+                const memoryMatch = reply.match(/<!--MEMORY_FOR_NEXT:([^>]+)-->/);
+                if (memoryMatch && memoryMatch[1]) {
+                    memory = memoryMatch[1];
+                    // 从回复中移除标记
+                    reply = reply.replace(/<!--MEMORY_FOR_NEXT:[^>]+-->/, '').trim();
+                }
+                
+                // 提取记忆显示部分（如果直接显示在回复中）
+                const memoryDisplayMatch = reply.match(/【对话历史】([\s\S]*)$/);
+                if (memoryDisplayMatch) {
+                    // 记忆已经显示在回复中，不需要额外处理
+                }
+                
+                return {
+                    reply: reply,
+                    memory: memory,
+                    isReset: isReset
+                };
             }
             
             // 添加消息到聊天界面
@@ -261,13 +294,19 @@
                 contentDiv.className = 'message-content';
                 
                 // 处理换行和格式化
-                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+                contentDiv.innerHTML = formatMessageContent(content);
                 
                 messageDiv.appendChild(contentDiv);
                 chatContainer.appendChild(messageDiv);
                 
                 // 滚动到底部
                 chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            // 格式化消息内容
+            function formatMessageContent(content) {
+                // 保留换行
+                return content.replace(/\n/g, '<br>');
             }
             
             // 显示"正在输入"指示器
